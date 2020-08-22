@@ -21,29 +21,44 @@ class ListAPIView(generics.ListAPIView):
         if filter is not None:
             qs=qs.filter(title__icontains=filter)
             return qs
-        return qs    
+        return qs
     
 class ProductCreateView(generics.GenericAPIView, mixins.CreateModelMixin):
+    queryset=Product.objects.all()
+    serializer_class=ProductDetailSerializer
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
         
-class ProductDetailView(generics.GenericAPIView, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, mixins.DestroyModelMixin):
-    serializer_class=ProductDetailSerializer
+class ProductDetailView(generics.GenericAPIView ,mixins.UpdateModelMixin, mixins.DestroyModelMixin, mixins.RetrieveModelMixin):
     queryset=Product.objects.all()
+    serializer_class=ProductDetailSerializer 
 
-    def get(self, request, *args, **kwargs):
-        data=self.retrieve(request, *args, **kwargs)
-        return data
+    def get(self, request, pk):
+        detail_page=get_object_or_404(Product, pk=pk)
+        serializer=ProductDetailSerializer(detail_page)
+        data=serializer.data
+        try:
+            print('trying..')
+            rating=Rating.objects.filter(product__id=serializer.data['id'])
+            for item in rating:
+                if item.user.id==request.user.id:
+                    data['is_assessed']=True
+        except:
+
+            data['is_assessed']=False
+        return Response(data)
+
 
     def put(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)
+    
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
 
-class CreateRatingView(APIView):
-    def post(self, request):
-        serializer=CreateRatingSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(status=201)
+class CreateRatingView(generics.CreateAPIView):
+    serializer_class=CreateRatingSerializer
+    queryset=Rating.objects.all()
+    
 
 
 

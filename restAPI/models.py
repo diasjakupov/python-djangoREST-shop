@@ -41,12 +41,17 @@ class Product(models.Model):
 
 
     def __str__(self):
-        return self.title
+        return f'{self.title}, id:{self.pk}'
+
+
+
 
 class Order(models.Model):
     products=models.ManyToManyField(Product)
     customer=models.ForeignKey(Profile, on_delete=models.CASCADE, null=True)
     total_price=models.IntegerField(null=True, default=0)
+
+
 
 
 class RatingStars(models.Model):
@@ -58,7 +63,7 @@ class RatingStars(models.Model):
 
 
 class Rating(models.Model):
-    star=models.ForeignKey(RatingStars, on_delete=models.CASCADE)
+    star=models.ForeignKey(RatingStars, on_delete=models.CASCADE, default=0)
     user=models.ForeignKey(User, on_delete=models.CASCADE)
     product=models.ForeignKey(Product, on_delete=models.CASCADE)
 
@@ -66,7 +71,16 @@ class Rating(models.Model):
         star=str(self.star)
         return star
 
+class Review(models.Model):
+    customer=models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Покупатель')
+    product=models.ForeignKey(Product, on_delete=models.CASCADE, null=True, verbose_name="Товар", related_name='reviews')
+    content=models.TextField(null=True)
+    published_date=models.DateTimeField(auto_now_add=True, verbose_name="Дата публикации")
+    changed_date=models.DateTimeField(auto_now=True, null=True)
+    parent=models.ForeignKey('self', null=True, default=None, on_delete=models.CASCADE, blank=True, related_name='children')
 
+    def __str__(self):
+        return f'{self.customer.username} : {self.content}'
 
 
 
