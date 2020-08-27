@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.db.models import Avg
+from django.db.models import Avg, F, Sum
 
 
 
@@ -16,6 +16,15 @@ class Profile(models.Model):
         return self.username
 
 
+class Category(models.Model):
+    title=models.CharField(max_length=300)
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        verbose_name='Категория'
+        verbose_name_plural='Категории'
 
 
 class ProductQuerySet(models.QuerySet):
@@ -26,30 +35,68 @@ class ProductManager(models.Manager):
         return ProductQuerySet(self.model, using=self._db)
 
 class Product(models.Model):
-    title=models.CharField(max_length=200)
-    description=models.TextField(null=True)
-    amount=models.IntegerField(null=True, default=0)
-    price=models.FloatField(null=True, default=0)
+    title=models.CharField(max_length=200, unique=False)
+    category=models.ForeignKey(Category, on_delete=models.CASCADE, null=True, unique=False)
+    description=models.TextField(null=True, unique=False)
+    available=models.IntegerField(null=True, default=0, unique=False)
+    price=models.FloatField(null=True, default=0, unique=False)
     objects=ProductManager()
     class Meta:
         verbose_name='Продукт'
         verbose_name_plural='Продукты'
 
     def get_average_rating(self):
-        value=self.rating_set.aggregate(Avg('star'))
+        value=self.rating_set.aggregate(Avg(F('star')))
         return value
 
 
     def __str__(self):
         return f'{self.title}, id:{self.pk}'
 
-
-
-
 class Order(models.Model):
-    products=models.ManyToManyField(Product)
-    customer=models.ForeignKey(Profile, on_delete=models.CASCADE, null=True)
-    total_price=models.IntegerField(null=True, default=0)
+    STATUS=[('DELIVER', 'deliver'),('PICKUP', 'pickup')]
+    ACTIVE_STATUS=[('ACTIVE', 'active'), ('COMPLETED', 'completed'), ('PREPARATION', 'preparation')]
+    customer=models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+    status=models.CharField(max_length=200, choices=STATUS, default='deliver')
+    total_price=models.FloatField(null=True, default=0)
+    is_active=models.CharField(default='ACTIVE', null=True, choices=ACTIVE_STATUS, max_length=75)
+
+
+
+    def get_price(self):
+        self.total_price=self.products.aggregate(Sum('total_price'))['total_price__sum']
+        print(self.total_price)
+        self.save()
+        return self.total_price
+        
+
+    @property
+    def get_product(self):
+       return self.products.all()
+
+
+    def __str__(self):
+        idx=str(self.id)
+        return idx
+
+
+class CardProduct(models.Model):
+    product=models.ForeignKey(Product, on_delete=models.CASCADE)
+    customer=models.ForeignKey(User, on_delete=models.CASCADE, null=True, unique=False)
+    amount=models.IntegerField(default=1, null=True, unique=False)
+    total_price=models.FloatField(default=0, unique=False, null=True)
+    card=models.ForeignKey(Order, on_delete=models.CASCADE, null=True, related_name='products')
+
+
+    def get_total_price(self):
+        product_price=self.product.price
+        self.total_price=product_price*float(self.amount)
+        self.save()
+        return self.total_price
+
+    def __str__(self):
+        return self.product.title
+
 
 
 

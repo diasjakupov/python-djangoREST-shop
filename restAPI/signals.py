@@ -1,7 +1,8 @@
 from django.contrib.auth.models import User
-from django.db.models.signals import post_save
+
+from django.db.models.signals import post_save,m2m_changed
 from django.dispatch import receiver
-from .models import Profile
+from .models import Profile, Product, CardProduct, Order
 
 
 @receiver(post_save, sender=User)
@@ -16,3 +17,20 @@ def save_user_profile(sender, instance, created,**kwargs):
         instance.profile.email=instance.email
         instance.profile.save()
         print('updated')
+
+
+
+
+@receiver(post_save, sender=CardProduct)
+def set_a_price(sender, created, instance, **kwargs):
+    if created==True:
+        print('ok')
+        try:
+            instance.get_total_price()
+            instance.save()
+        except:
+            print('error')
+    
+    
+   
+

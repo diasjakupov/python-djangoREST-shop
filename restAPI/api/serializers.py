@@ -1,11 +1,11 @@
 from rest_framework import serializers
-from ..models import Product, Order, Rating, Review
+from ..models import Product, Order, Rating, Review, Category, CardProduct
 
 class ProductListSerializer(serializers.ModelSerializer):
     rating=serializers.CharField(source='get_average_rating', read_only=True)
     class Meta:
         model = Product
-        fields = ['title',  'amount', 'pk', 'rating']
+        fields = ['title',  'available', 'pk', 'rating']
 
 
 
@@ -35,10 +35,18 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     is_assessed=serializers.BooleanField(default=False, required=False, read_only=True)
     class Meta:
         model = Product
-        fields=['id','title','description','amount','price', 'rating', 'is_assessed', 'reviews']
+        fields=['id','title','description','available','price', 'rating', 'is_assessed', 'reviews']
 
-    
 
+
+class CardProductSerializer(serializers.ModelSerializer):
+    title=serializers.CharField(source='product.title')
+    description=serializers.CharField(source='product.description')
+    class Meta:
+        model = CardProduct
+        fields=('id', 'title', 'description', 'amount', 'total_price')
+        
+        
 
 
 
@@ -56,9 +64,47 @@ class CreateRatingSerializer(serializers.ModelSerializer):
         return rating
 
 
+
+
+
 class OrderListSerializer(serializers.ModelSerializer):
     customer=serializers.StringRelatedField(many=False)
     products=serializers.StringRelatedField(many=True)
     class Meta:
         model=Order
         fields="__all__"
+
+class OrderDetailSerializer(serializers.ModelSerializer):
+    products=CardProductSerializer(many=True, required=False)
+    class Meta:
+        model = Order
+        fields=['products', 'status', 'total_price']
+        read_only_fields=['total_price', 'products']
+        
+
+    def update(self, instance, validated_data):
+        instance.status=validated_data['status']
+        instance.save()
+        return instance
+
+
+
+class AddProductToOrder(serializers.ModelSerializer):
+    class Meta:
+        model = CardProduct
+        fields = ['product', 'card']
+        read_only_fields=['card']
+
+    def create(self, validated_data):
+        user =  self.context['request'].user
+        current_order, created=Order.objects.get_or_create(customer=user, defaults={'is_active':"ACTIVE"})
+        product, created=CardProduct.objects.get_or_create(product=validated_data['product'], defaults={'customer':user})
+        if not current_order.products.filter(pk=product.pk).exists():
+            product.card=current_order
+            product.save()
+            current_order.get_price()
+        return product
+                
+                
+        
+

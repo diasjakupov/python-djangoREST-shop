@@ -1,14 +1,18 @@
 from rest_framework.views import APIView
 from rest_framework import generics, mixins
 from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, HttpResponse
+from rest_framework import status
 
-from .models import Product, Order,Rating
+from .models import Product, Order,Rating, CardProduct
 from restAPI.api.serializers import (
     ProductListSerializer, 
     ProductDetailSerializer,
+    CreateRatingSerializer,
+    CardProductSerializer,
     OrderListSerializer,
-    CreateRatingSerializer)
+    AddProductToOrder,
+    OrderDetailSerializer)
 
 """Product Views"""
 
@@ -38,7 +42,6 @@ class ProductDetailView(generics.GenericAPIView ,mixins.UpdateModelMixin, mixins
         serializer=ProductDetailSerializer(detail_page)
         data=serializer.data
         try:
-            print('trying..')
             rating=Rating.objects.filter(product__id=serializer.data['id'])
             for item in rating:
                 if item.user.id==request.user.id:
@@ -68,3 +71,32 @@ class CreateRatingView(generics.CreateAPIView):
 class OrderListView(generics.ListAPIView):
     queryset=Order.objects.all()
     serializer_class=OrderListSerializer
+
+class AddProductToOrderView(generics.CreateAPIView):
+    queryset=CardProduct.objects.all()
+    serializer_class=AddProductToOrder
+
+
+class OrderDetailView(generics.RetrieveUpdateAPIView):
+    queryset=Order.objects.all()
+    serializer_class=OrderDetailSerializer
+
+
+
+        
+        
+        
+
+    
+   
+        
+
+
+
+    
+
+    
+        
+
+        
+        
