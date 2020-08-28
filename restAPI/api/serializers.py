@@ -17,15 +17,19 @@ class CommentaryFilter(serializers.ListSerializer):
 class ChildrenCommentaryField(serializers.Serializer):
     def to_representation(self, value):
         serializer=self.parent.parent.__class__(value, context=self.context)
+        print(value)
+        print(self.context)
+        print(serializer.data)
         return serializer.data
 
 
 class ReviewsSerializer(serializers.ModelSerializer):
-    children=ChildrenCommentaryField(many=True)
+    children=ChildrenCommentaryField(many=True, required=False)
     class Meta:
         list_serializer_class=CommentaryFilter
         model = Review
-        fields=['customer', 'product', 'content', 'children']
+        fields=['customer', 'product', 'content', 'children', 'parent']
+        read_only_fields=['children']
 
 
 
@@ -36,18 +40,6 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields=['id','title','description','available','price', 'rating', 'is_assessed', 'reviews']
-
-
-
-class CardProductSerializer(serializers.ModelSerializer):
-    title=serializers.CharField(source='product.title')
-    description=serializers.CharField(source='product.description')
-    class Meta:
-        model = CardProduct
-        fields=('id', 'title', 'description', 'amount', 'total_price')
-        
-        
-
 
 
 class CreateRatingSerializer(serializers.ModelSerializer):
@@ -66,6 +58,20 @@ class CreateRatingSerializer(serializers.ModelSerializer):
 
 
 
+class CardProductSerializer(serializers.ModelSerializer):
+    product=serializers.SlugRelatedField(read_only=True , slug_field='title')
+    description=serializers.CharField(source='product.description')
+    
+    class Meta:
+        model = CardProduct
+        fields=('id','product','description','amount', 'total_price')
+
+    def cleared_queryset(self, queryset):
+        print(queryset)
+        queryset=queryset.select_related('product').prefetch_related('title', 'description')
+        return queryset
+        
+
 
 class OrderListSerializer(serializers.ModelSerializer):
     customer=serializers.StringRelatedField(many=False)
@@ -75,12 +81,14 @@ class OrderListSerializer(serializers.ModelSerializer):
         fields="__all__"
 
 class OrderDetailSerializer(serializers.ModelSerializer):
-    products=CardProductSerializer(many=True, required=False)
+    products=CardProductSerializer(many=True)
     class Meta:
         model = Order
-        fields=['products', 'status', 'total_price']
-        read_only_fields=['total_price', 'products']
+        fields=['status', 'products', 'total_price']
+        read_only_fields=['total_price']
         
+
+
 
     def update(self, instance, validated_data):
         instance.status=validated_data['status']

@@ -6,7 +6,8 @@ from .views import (
     OrderListView,
     CreateRatingView,
     AddProductToOrderView,
-    OrderDetailView
+    OrderDetailView,
+    CreateReviewsView
 ) 
 
 
@@ -18,5 +19,6 @@ urlpatterns = [
     path('order/', OrderListView.as_view(), name='order_list'),
     path('order/<int:pk>', OrderDetailView.as_view(), name='order_detail_page'),
     path('order/add_to_card/<int:pk>', AddProductToOrderView.as_view(), name='add_product'),
-    path('rating/', CreateRatingView.as_view(), name='create_rating')
+    path('rating/', CreateRatingView.as_view(), name='create_rating'),
+    path('review/create', CreateReviewsView.as_view(), name='create_review')
 ]

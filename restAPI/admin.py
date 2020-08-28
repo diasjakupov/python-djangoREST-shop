@@ -22,7 +22,9 @@ class RatingAdmin(admin.ModelAdmin):
     list_display=['star', 'user', 'product', 'id']
 
 class ReviewAdmin(admin.ModelAdmin):
-    list_display=['customer','product', 'published_date', 'parent']
+    list_display=['customer','product', 'published_date']
+    fields=['customer','product', 'published_date', 'parent']
+    readonly_fields=['published_date']
 
 class OrderAdmin(admin.ModelAdmin):
     list_display=['id', 'customer']
@@ -36,11 +38,11 @@ class OrderAdmin(admin.ModelAdmin):
 
 
 class CardProductAdmin(admin.ModelAdmin):
-    fields=('product', 'customer', 'amount', 'card', 'get_price')
-    readonly_fields=('get_price', )
+    list_display=['id','product']
+    fields=('product', 'customer', 'amount', 'card', 'total_price')
+    
 
-    def get_price(self, obj):
-        return obj.get_total_price()
+   
 
 
 admin.site.register(Product, ProductAdmin)

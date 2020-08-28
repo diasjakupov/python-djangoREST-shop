@@ -84,18 +84,22 @@ class CardProduct(models.Model):
     product=models.ForeignKey(Product, on_delete=models.CASCADE)
     customer=models.ForeignKey(User, on_delete=models.CASCADE, null=True, unique=False)
     amount=models.IntegerField(default=1, null=True, unique=False)
-    total_price=models.FloatField(default=0, unique=False, null=True)
+    total_price=models.FloatField(default=0, unique=False, null=True, max_length=4)
     card=models.ForeignKey(Order, on_delete=models.CASCADE, null=True, related_name='products')
 
 
     def get_total_price(self):
         product_price=self.product.price
         self.total_price=product_price*float(self.amount)
-        self.save()
+        self.total_price=round(self.total_price)
         return self.total_price
 
     def __str__(self):
         return self.product.title
+
+    def save(self, *args, **kwargs):
+        self.get_total_price()
+        return super(CardProduct, self).save(*args, **kwargs)
 
 
 

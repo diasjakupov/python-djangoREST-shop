@@ -21,15 +21,7 @@ def save_user_profile(sender, instance, created,**kwargs):
 
 
 
-@receiver(post_save, sender=CardProduct)
-def set_a_price(sender, created, instance, **kwargs):
-    if created==True:
-        print('ok')
-        try:
-            instance.get_total_price()
-            instance.save()
-        except:
-            print('error')
+
     
     
    

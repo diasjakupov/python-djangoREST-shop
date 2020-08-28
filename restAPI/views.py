@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404, HttpResponse
 from rest_framework import status
 
-from .models import Product, Order,Rating, CardProduct
+from .models import Product, Order,Rating, CardProduct, Review
 from restAPI.api.serializers import (
     ProductListSerializer, 
     ProductDetailSerializer,
@@ -12,7 +12,9 @@ from restAPI.api.serializers import (
     CardProductSerializer,
     OrderListSerializer,
     AddProductToOrder,
-    OrderDetailSerializer)
+    OrderDetailSerializer,
+    ReviewsSerializer
+    )
 
 """Product Views"""
 
@@ -78,8 +80,18 @@ class AddProductToOrderView(generics.CreateAPIView):
 
 
 class OrderDetailView(generics.RetrieveUpdateAPIView):
-    queryset=Order.objects.all()
     serializer_class=OrderDetailSerializer
+
+    def get_queryset(self):
+        return Order.objects.all()
+        .prefetch_related('products')
+        .prefetch_related('products__product')
+
+
+"""Reviews order"""
+class CreateReviewsView(generics.CreateAPIView):
+    queryset=Review.objects.all()
+    serializer_class=ReviewsSerializer
 
 
 
