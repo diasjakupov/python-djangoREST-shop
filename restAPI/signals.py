@@ -2,7 +2,9 @@ from django.contrib.auth.models import User
 
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from .models import Profile, Product, CardProduct, Order
+from .models import Profile, Product, CardProduct, Order, ProductImage
+
+import os
 
 
 @receiver(post_save, sender=User)
@@ -30,3 +32,8 @@ def order_price_with_changed_cardproduct(sender, instance, created, **kwargs):
 @receiver(post_delete, sender=CardProduct)
 def order_price_with_deleted_cardproduct(sender, instance, **kwargs):
     Order.objects.get(is_active='active').get_price()
+
+
+@receiver(post_delete, sender=ProductImage)
+def delete_images(sender, instance, **kwargs):
+    os.remove(f'./media/{instance.image}')

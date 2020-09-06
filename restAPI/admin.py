@@ -4,12 +4,12 @@ from .forms import ProductForm
 from django.db.models import Avg
 
 
-class ProductImage(admin.TabularInline):
+class ProductImageAdmin(admin.TabularInline):
     model = ProductImage
 
 
 class ProductAdmin(admin.ModelAdmin):
-    inlines = [ProductImage]
+    inlines = [ProductImageAdmin]
     list_display = ['pk', 'title', 'available', 'get_average_rating', 'price']
     ordering = ['pk']
     form = ProductForm
@@ -52,3 +52,4 @@ admin.site.register(Profile)
 admin.site.register(Review, ReviewAdmin)
 admin.site.register(Category)
 admin.site.register(CardProduct, CardProductAdmin)
+admin.site.register(ProductImage)
