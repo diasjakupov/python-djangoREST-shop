@@ -9,11 +9,13 @@ from .views import (
     OrderDetailView,
     CreateReviewsView,
     CardProductDetailView,
-    CategoryListView
+    CategoryListView,
+    TestView
 )
 
 
 urlpatterns = [
+    path('', TestView.as_view()),
     path('products', ProductListView.as_view(), name='products_list'),
     path('category', CategoryListView.as_view(), name='categories_list'),
     path('products/create', ProductCreateView.as_view(), name='create'),

@@ -66,6 +66,10 @@ class ProductImage(models.Model):
         Product, on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to=foldername)
 
+    def __str__(self):
+        product = str(self.product)
+        return product
+
 
 class Order(models.Model):
     STATUS = [('deliver', 'deliver'), ('pickup', 'pickup')]

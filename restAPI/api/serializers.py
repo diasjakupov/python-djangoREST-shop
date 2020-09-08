@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from ..models import Product, Order, Rating, Review, Category, CardProduct
+from ..models import Product, Order, Rating, Review, Category, CardProduct, ProductImage
 
 
 """Product and relevant serializer"""
@@ -52,16 +52,23 @@ class CategorySerializer(serializers.ModelSerializer):
         list_serializer_class = CategoryFilter
 
 
+class ImageSerizalizer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductImage
+        fields = ['image']
+
+
 class ProductDetailSerializer(serializers.ModelSerializer):
     rating = serializers.CharField(source='get_average_rating', read_only=True)
     reviews = ReviewsSerializer(many=True, required=False, read_only=True)
     is_assessed = serializers.BooleanField(
         default=False, required=False, read_only=True)
+    images = ImageSerizalizer(many=True)
 
     class Meta:
         model = Product
         fields = ['id', 'title', 'description', 'available',
-                  'price', 'rating', 'is_assessed', 'reviews']
+                  'price', 'rating', 'is_assessed', 'reviews', 'images']
 
 
 class CreateRatingSerializer(serializers.ModelSerializer):

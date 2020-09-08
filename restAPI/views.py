@@ -1,11 +1,12 @@
 from rest_framework.views import APIView
-from rest_framework import generics, mixins
+from rest_framework import generics, mixins, permissions
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404, HttpResponse
 from rest_framework import status
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .filters import *
+from django.contrib.auth import get_user
 
 from .models import Product, Order, Rating, CardProduct, Review
 from restAPI.api.serializers import (
@@ -23,10 +24,16 @@ from restAPI.api.serializers import (
 """Product Views"""
 
 
+class TestView(APIView):
+    def get(self, request):
+        print(get_user(request=request))
+
+
 class ProductListView(generics.ListAPIView):
     serializer_class = ProductListSerializer
     filter_backends = (DjangoFilterBackend,)
     filterset_class = PriceFilter
+    permission_classes = [permissions.IsAdminUser, ]
 
     def get_queryset(self):
         qs = Product.objects.all()
