@@ -1,55 +1,53 @@
 from rest_framework import serializers
-from ..models import Product, Order, Rating, Review, Category, CardProduct, ProductImage
+
+
+from djoser.serializers import UserCreateSerializer
+from ..models import Product, Order, Rating, Review, Category, CardProduct, ProductImage, Profile
+from django.contrib.auth import get_user, get_user_model
+from django.db.models import Q, Prefetch
+
+
+class UserCreateSerializer(UserCreateSerializer):
+    class Meta(UserCreateSerializer.Meta):
+        model = get_user_model()
+        fields = ['id', 'username', 'email', 'password']
 
 
 """Product and relevant serializer"""
 
 
-class ProductListSerializer(serializers.ModelSerializer):
-    rating = serializers.CharField(source='get_average_rating', read_only=True)
-    category = serializers.StringRelatedField(many=True)
-
-    class Meta:
-        model = Product
-        fields = ['title', 'price', 'available',
-                  'pk', 'rating', 'category']
-
-
-class CommentaryFilter(serializers.ListSerializer):
+class RecursiveFilter(serializers.ListSerializer):
     def to_representation(self, data):
         data = data.filter(parent=None)
         return super().to_representation(data)
 
 
-class ChildrenCommentaryField(serializers.Serializer):
+class ChildrenField(serializers.Serializer):
     def to_representation(self, value):
-        serializer = self.parent.parent.__class__(value, context=self.context)
+        serializer = self.parent.parent.__class__(value)
         return serializer.data
 
 
 class ReviewsSerializer(serializers.ModelSerializer):
-    children = ChildrenCommentaryField(many=True, required=False)
+    children = ChildrenField(
+        many=True)
+    user = serializers.StringRelatedField()
 
     class Meta:
-        list_serializer_class = CommentaryFilter
+        list_serializer_class = RecursiveFilter
         model = Review
-        fields = ['id', 'customer', 'product', 'content', 'children', 'parent']
+        fields = ['id', 'user', 'content',
+                  'parent', 'children', 'published_date']
         read_only_fields = ['children']
 
 
-class CategoryFilter(serializers.ListSerializer):
-    def to_representation(self, value):
-        value = value.filter(tags=None)
-        return super().to_representation(value)
-
-
 class CategorySerializer(serializers.ModelSerializer):
-    subcategory = serializers.StringRelatedField(many=True)
+    children = ChildrenField(many=True)
 
     class Meta:
         model = Category
-        fields = ['title', 'subcategory']
-        list_serializer_class = CategoryFilter
+        fields = ['title', 'children', 'parent_id']
+        list_serializer_class = RecursiveFilter
 
 
 class ImageSerizalizer(serializers.ModelSerializer):
@@ -58,17 +56,42 @@ class ImageSerizalizer(serializers.ModelSerializer):
         fields = ['image']
 
 
-class ProductDetailSerializer(serializers.ModelSerializer):
+class ProductListSerializer(serializers.ModelSerializer):
     rating = serializers.CharField(source='get_average_rating', read_only=True)
-    reviews = ReviewsSerializer(many=True, required=False, read_only=True)
-    is_assessed = serializers.BooleanField(
-        default=False, required=False, read_only=True)
+    category = serializers.StringRelatedField(many=True)
     images = ImageSerizalizer(many=True)
 
     class Meta:
         model = Product
-        fields = ['id', 'title', 'description', 'available',
+        fields = ['title', 'price', 'available',
+                  'pk', 'rating', 'category', 'images']
+
+
+class ProductDetailSerializer(serializers.ModelSerializer):
+    rating = serializers.CharField(source='get_average_rating', read_only=True)
+    reviews = ReviewsSerializer(many=True)
+    is_assessed = serializers.SerializerMethodField()
+    images = ImageSerizalizer(many=True)
+
+    class Meta:
+        model = Product
+        fields = ['id', 'title', 'description', 'category', 'available',
                   'price', 'rating', 'is_assessed', 'reviews', 'images']
+
+    # def get_reviews(self, obj):
+    #     data = Review.objects.filter(product=obj).select_related(
+    #         'user', 'parent').prefetch_related(Prefetch('children', queryset=Review.objects.all()))
+    #     serializer = ReviewsSerializer(data, many=True)
+    #     return serializer.data
+
+    def get_is_assessed(self, obj):
+        request = self.context['request']
+        try:
+            users_id = [i.user.id for i in obj.rating.all()]
+            if request.user.id in users_id:
+                return True
+        except:
+            return False
 
 
 class CreateRatingSerializer(serializers.ModelSerializer):
@@ -102,27 +125,26 @@ class CardProductSerializer(serializers.ModelSerializer):
         return instance
 
 
-class OrderListSerializer(serializers.ModelSerializer):
-    customer = serializers.StringRelatedField(many=False)
-    products = serializers.StringRelatedField(many=True)
-
-    class Meta:
-        model = Order
-        fields = "__all__"
-
-
 class OrderDetailSerializer(serializers.ModelSerializer):
     products = CardProductSerializer(many=True, required=False)
 
     class Meta:
         model = Order
-        fields = ['status', 'products', 'total_price']
+        fields = ['id', 'status', 'products', 'total_price', 'is_active']
         read_only_fields = ['total_price']
 
     def update(self, instance, validated_data):
         instance.status = validated_data['status']
         instance.save()
         return instance
+
+
+class OrderListSerializer(serializers.ModelSerializer):
+    products = serializers.StringRelatedField(many=True)
+
+    class Meta:
+        model = Order
+        fields = ['status', 'id', 'total_price', 'is_active', 'products']
 
 
 class AddProductToOrder(serializers.ModelSerializer):
@@ -143,3 +165,15 @@ class AddProductToOrder(serializers.ModelSerializer):
             product.save()
             current_order.get_price()
         return product
+
+
+class UserDetailSerializer(serializers.ModelSerializer):
+    orders_quantity = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Profile
+        fields = ['email', 'username', 'phone', 'orders_quantity']
+
+    def get_orders_quantity(self, obj):
+        data = obj.customer.order.all()
+        return data.count()

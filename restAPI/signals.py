@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from .models import Profile, Product, CardProduct, Order, ProductImage
+from djoser.signals import user_activated
 
 import os
 
@@ -31,7 +32,10 @@ def order_price_with_changed_cardproduct(sender, instance, created, **kwargs):
 
 @receiver(post_delete, sender=CardProduct)
 def order_price_with_deleted_cardproduct(sender, instance, **kwargs):
-    Order.objects.get(is_active='active').get_price()
+    try:
+        Order.objects.get(is_active='active').get_price()
+    except:
+        print('order was deleted')
 
 
 @receiver(post_delete, sender=ProductImage)

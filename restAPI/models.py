@@ -17,8 +17,8 @@ class Profile(models.Model):
 
 class Category(models.Model):
     title = models.CharField(max_length=300)
-    tags = models.ForeignKey(
-        'self', null=True, on_delete=models.CASCADE, blank=True, related_name='subcategory')
+    parent = models.ForeignKey(
+        'self', null=True, on_delete=models.CASCADE, blank=True, related_name='children')
 
     def __str__(self):
         return self.title
@@ -28,29 +28,19 @@ class Category(models.Model):
         verbose_name_plural = 'Категории'
 
 
-class ProductQuerySet(models.QuerySet):
-    pass
-
-
-class ProductManager(models.Manager):
-    def get_queryset(self):
-        return ProductQuerySet(self.model, using=self._db)
-
-
 class Product(models.Model):
     title = models.CharField(max_length=200)
     category = models.ManyToManyField(Category)
     description = models.TextField(null=True)
     available = models.IntegerField(null=True, default=0)
     price = models.FloatField(null=True, default=0)
-    objects = ProductManager()
 
     class Meta:
         verbose_name = 'Продукт'
         verbose_name_plural = 'Продукты'
 
     def get_average_rating(self):
-        value = self.rating_set.aggregate(Avg(F('star')))['star__avg']
+        value = self.rating.aggregate(Avg(F('star')))['star__avg']
         return value
 
     def __str__(self):
@@ -64,7 +54,8 @@ def foldername(instance, filename):
 class ProductImage(models.Model):
     product = models.ForeignKey(
         Product, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to=foldername)
+    image = models.ImageField(
+        upload_to=foldername)
 
     def __str__(self):
         product = str(self.product)
@@ -75,7 +66,8 @@ class Order(models.Model):
     STATUS = [('deliver', 'deliver'), ('pickup', 'pickup')]
     ACTIVE_STATUS = [('active', 'active'), ('completed',
                                             'completed'), ('preparation', 'preparation')]
-    customer = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+    customer = models.ForeignKey(
+        User, on_delete=models.CASCADE, null=True, related_name='order')
     status = models.CharField(
         max_length=200, choices=STATUS, default='deliver')
     total_price = models.FloatField(null=True, default=0)
@@ -128,7 +120,8 @@ class RatingStars(models.Model):
 class Rating(models.Model):
     star = models.ForeignKey(RatingStars, on_delete=models.CASCADE, default=0)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name='rating')
 
     def __str__(self):
         star = str(self.star)
@@ -136,7 +129,7 @@ class Rating(models.Model):
 
 
 class Review(models.Model):
-    customer = models.ForeignKey(
+    user = models.ForeignKey(
         User, on_delete=models.CASCADE, verbose_name='Покупатель')
     product = models.ForeignKey(Product, on_delete=models.CASCADE,
                                 null=True, verbose_name="Товар", related_name='reviews')
@@ -148,4 +141,4 @@ class Review(models.Model):
                                on_delete=models.CASCADE, blank=True, related_name='children')
 
     def __str__(self):
-        return f'{self.customer.username} : {self.content}'
+        return f'{self.user.username} : {self.content}'
