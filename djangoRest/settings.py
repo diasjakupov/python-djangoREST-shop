@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'restAPI.apps.RestapiConfig',
     'djoser',
     'corsheaders',
-    # 'rest_framework.authtoken',
+    'mptt',
     'rest_framework',
     'debug_toolbar',
     'django_filters'
@@ -161,8 +161,8 @@ EMAIL_HOST_PASSWORD = 'ktruwkoiefsrebin'
 
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=10),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=5),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=10),
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
 

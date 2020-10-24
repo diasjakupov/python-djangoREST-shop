@@ -6,7 +6,8 @@ from django.db.models import Avg, F, Sum
 
 
 class Profile(models.Model):
-    customer = models.OneToOneField(User, on_delete=models.CASCADE)
+    customer = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name='customer')
     username = models.CharField(max_length=300, null=True)
     phone = models.IntegerField(null=True)
     email = models.EmailField(null=True)
@@ -18,7 +19,11 @@ class Profile(models.Model):
 class Category(models.Model):
     title = models.CharField(max_length=300)
     parent = models.ForeignKey(
-        'self', null=True, on_delete=models.CASCADE, blank=True, related_name='children')
+        'self',
+        null=True,
+        on_delete=models.CASCADE,
+        blank=True,
+        related_name='children')
 
     def __str__(self):
         return self.title
@@ -72,7 +77,7 @@ class Order(models.Model):
         max_length=200, choices=STATUS, default='deliver')
     total_price = models.FloatField(null=True, default=0)
     is_active = models.CharField(
-        default='active', null=True, choices=ACTIVE_STATUS, max_length=75)
+        default='active', null=True, choices=ACTIVE_STATUS, max_length=200)
 
     def get_price(self):
         self.total_price = self.products.aggregate(
@@ -97,7 +102,7 @@ class CardProduct(models.Model):
 
     def get_total_price(self):
         product_price = self.product.price
-        self.total_price = product_price*float(self.amount)
+        self.total_price = product_price * float(self.amount)
         self.total_price = round(self.total_price)
         return self.total_price
 
@@ -131,14 +136,22 @@ class Rating(models.Model):
 class Review(models.Model):
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, verbose_name='Покупатель')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE,
-                                null=True, verbose_name="Товар", related_name='reviews')
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        null=True,
+        verbose_name="Товар",
+        related_name='reviews')
     content = models.TextField(null=True)
     published_date = models.DateTimeField(
         auto_now_add=True, verbose_name="Дата публикации")
     changed_date = models.DateTimeField(auto_now=True, null=True)
-    parent = models.ForeignKey('self', null=True, default=None,
-                               on_delete=models.CASCADE, blank=True, related_name='children')
+    parent = models.ForeignKey(
+        'self',
+        null=True,
+        on_delete=models.CASCADE,
+        blank=True,
+        related_name='children')
 
     def __str__(self):
         return f'{self.user.username} : {self.content}'

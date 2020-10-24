@@ -2,6 +2,7 @@ from django.contrib import admin
 from .models import Product, Profile, Order, RatingStars, Rating, Review, CardProduct, Category, ProductImage
 from .forms import ProductForm
 from django.db.models import Avg
+from mptt.admin import MPTTModelAdmin
 
 
 class ProductImageAdmin(admin.TabularInline):
@@ -32,6 +33,7 @@ class ReviewAdmin(admin.ModelAdmin):
     list_display = ['id', 'user', 'product', 'published_date']
     fields = ['user', 'product', 'content', 'published_date', 'parent']
     readonly_fields = ['published_date']
+    mptt_level_indent = 5
 
 
 class OrderAdmin(admin.ModelAdmin):

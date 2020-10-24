@@ -50,8 +50,8 @@ class ProductDetailView(generics.RetrieveAPIView):
 
 class CategoryListView(generics.ListAPIView):
     serializer_class = CategorySerializer
-    queryset = Category.objects.all().prefetch_related(
-        'children').prefetch_related('children__children').prefetch_related('children__parent')
+    queryset = Category.objects.all().prefetch_related('children').prefetch_related(
+        'children__children').prefetch_related('children__parent')
 
 
 class CreateRatingView(generics.CreateAPIView):
@@ -62,39 +62,52 @@ class CreateRatingView(generics.CreateAPIView):
 """Order Views"""
 
 
-class ActiveOrderView(generics.GenericAPIView, mixins.DestroyModelMixin, mixins.UpdateModelMixin):
+class ActiveOrderView(generics.GenericAPIView):
     serializer_class = OrderDetailSerializer
 
-    def get(self, request):
-        user = self.request.user
-        obj = Order.objects.filter(customer=user).get(is_active='active')
+    def get_object(self, pk):
+        obj = Order.objects.filter(
+            customer_id=pk).get(is_active='active')
+        return obj
+
+    def get(self, request, **kwargs):
+        obj = self.get_object(pk=kwargs['pk'])
         serializer = OrderDetailSerializer(obj)
         return Response(serializer.data)
 
     def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
+        obj = self.get_object(pk=kwargs['pk'])
+        serializer = OrderDetailSerializer(obj, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ProfileOrderList(generics.ListAPIView):
     serializer_class = OrderListSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         pk = self.kwargs['pk']
-        qs = Order.objects.filter(customer=pk).filter(~Q(is_active='active'))
+        qs = Order.objects.filter(customer=pk).filter(
+            ~Q(is_active='active'))
         return qs
 
 
 class AddProductToOrderView(generics.CreateAPIView):
     queryset = CardProduct.objects.all()
     serializer_class = AddProductToOrder
+    permission_classes = [permissions.IsAuthenticated]
 
 
-class OrderDetailView(generics.RetrieveUpdateAPIView):
+class OrderDetailView(generics.RetrieveAPIView):
     serializer_class = OrderDetailSerializer
     permission_classes = (IsCartAllowed,)
 
     def get_queryset(self):
-        return Order.objects.all().prefetch_related('products').prefetch_related('products__product')
+        return Order.objects.all().prefetch_related(
+            'products', 'products__product__images')
 
 
 class CardProductDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -105,14 +118,26 @@ class CardProductDetailView(generics.RetrieveUpdateDestroyAPIView):
 """Profile"""
 
 
-class ProfileDetailView(generics.RetrieveUpdateAPIView):
+class ProfileDetailView(generics.GenericAPIView, mixins.UpdateModelMixin):
     serializer_class = UserDetailSerializer
     permission_classes = (permissions.IsAuthenticated,)
 
-    def get_queryset(self):
+    def get(request, *args, **kwargs):
         qs = Profile.objects.prefetch_related(
-            'customer__order')
-        return qs
+            "customer", "customer__order").get(pk=kwargs['pk'])
+        serializer = UserDetailSerializer(qs)
+        return Response(serializer.data)
+
+    def put(self, request, *args, **kwargs):
+        qs = Profile.objects.get(pk=kwargs['pk'])
+        user = User.objects.get(customer=qs)
+        serializer = UserDetailSerializer(qs, data=request.data)
+        if serializer.is_valid():
+            user.username = request.data['username']
+            user.email = request.data['email']
+            user.save()
+            serializer.save()
+            return Response(serializer.data)
 
 
 """Reviews"""
@@ -121,3 +146,11 @@ class ProfileDetailView(generics.RetrieveUpdateAPIView):
 class CreateReviewsView(generics.CreateAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewsSerializer
+
+
+class Test(APIView):
+    def get(request, *args, **kwargs):
+        qs = Profile.objects.prefetch_related(
+            "customer", "customer__order").get(pk=kwargs['pk'])
+        serializer = UserDetailSerializer(qs)
+        return Response(serializer.data)

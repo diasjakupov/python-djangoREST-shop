@@ -10,15 +10,17 @@ from .views import (
     CardProductDetailView,
     CategoryListView,
     ProfileDetailView,
-    ProfileOrderList
+    ProfileOrderList,
+    Test
 )
 
 
 urlpatterns = [
+    path('test/<int:pk>', Test.as_view()),
     path('products', ProductListView.as_view(), name='products_list'),
     path('category', CategoryListView.as_view(), name='categories_list'),
     path("products/<int:pk>", ProductDetailView.as_view(), name='detail'),
-    path('profile/active_order',
+    path('profile/active_order/<int:pk>',
          ActiveOrderView.as_view(), name='order_list'),
     path('profile/orders/<int:pk>/', ProfileOrderList.as_view()),
     path('order/<int:pk>', OrderDetailView.as_view(), name='order_detail_page'),

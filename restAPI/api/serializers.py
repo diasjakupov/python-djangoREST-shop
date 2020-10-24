@@ -5,6 +5,9 @@ from djoser.serializers import UserCreateSerializer
 from ..models import Product, Order, Rating, Review, Category, CardProduct, ProductImage, Profile
 from django.contrib.auth import get_user, get_user_model
 from django.db.models import Q, Prefetch
+from ..utils import checkingOrder
+from django.db.models import F
+from ..validators import AddingCardProduct, UpdatingCardProduct
 
 
 class UserCreateSerializer(UserCreateSerializer):
@@ -16,25 +19,8 @@ class UserCreateSerializer(UserCreateSerializer):
 """Product and relevant serializer"""
 
 
-class RecursiveFilter(serializers.ListSerializer):
-    def to_representation(self, data):
-        data = data.filter(parent=None)
-        return super().to_representation(data)
-
-
-class ChildrenField(serializers.Serializer):
-    def to_representation(self, value):
-        serializer = self.parent.parent.__class__(value)
-        return serializer.data
-
-
 class ReviewsSerializer(serializers.ModelSerializer):
-    children = ChildrenField(
-        many=True)
-    user = serializers.StringRelatedField()
-
     class Meta:
-        list_serializer_class = RecursiveFilter
         model = Review
         fields = ['id', 'user', 'content',
                   'parent', 'children', 'published_date']
@@ -42,12 +28,10 @@ class ReviewsSerializer(serializers.ModelSerializer):
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    children = ChildrenField(many=True)
 
     class Meta:
         model = Category
-        fields = ['title', 'children', 'parent_id']
-        list_serializer_class = RecursiveFilter
+        fields = ['id', 'title', 'children', 'parent_id']
 
 
 class ImageSerizalizer(serializers.ModelSerializer):
@@ -78,19 +62,13 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'description', 'category', 'available',
                   'price', 'rating', 'is_assessed', 'reviews', 'images']
 
-    # def get_reviews(self, obj):
-    #     data = Review.objects.filter(product=obj).select_related(
-    #         'user', 'parent').prefetch_related(Prefetch('children', queryset=Review.objects.all()))
-    #     serializer = ReviewsSerializer(data, many=True)
-    #     return serializer.data
-
     def get_is_assessed(self, obj):
         request = self.context['request']
         try:
             users_id = [i.user.id for i in obj.rating.all()]
             if request.user.id in users_id:
                 return True
-        except:
+        except BaseException:
             return False
 
 
@@ -113,11 +91,19 @@ class CreateRatingSerializer(serializers.ModelSerializer):
 
 class CardProductSerializer(serializers.ModelSerializer):
     product = serializers.SlugRelatedField(read_only=True, slug_field='title')
-    description = serializers.CharField(source='product.description')
+    images = ImageSerizalizer(
+        many=True, source='product.images', read_only=True)
 
     class Meta:
         model = CardProduct
-        fields = ('id', 'product', 'description', 'amount', 'total_price')
+        fields = ('id', 'product', 'product_id',
+                  'amount', 'total_price', 'images')
+        read_only_fields = ('id',
+                            'total_price', 'images')
+
+    def validate(self, data):
+        data = UpdatingCardProduct(data, self.initial_data)
+        return data
 
     def update(self, instance, data):
         instance.amount = data['amount']
@@ -140,31 +126,55 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
 
 class OrderListSerializer(serializers.ModelSerializer):
-    products = serializers.StringRelatedField(many=True)
+    products = serializers.IntegerField(source='products.count')
 
     class Meta:
         model = Order
-        fields = ['status', 'id', 'total_price', 'is_active', 'products']
+        fields = ['status', 'id', 'total_price',
+                  'is_active', 'products']
 
 
 class AddProductToOrder(serializers.ModelSerializer):
     class Meta:
         model = CardProduct
-        fields = ['product', 'card']
-        read_only_fields = ['card']
+        fields = ['product']
+        validators = [AddingCardProduct]
 
     def create(self, validated_data):
-        print(validated_data)
+        """Получаю данные"""
         user = self.context['request'].user
-        current_order, created = Order.objects.get_or_create(
-            is_active="active", defaults={'customer': "user"})
+        product_instance = validated_data['product']
+        """Проверию существование"""
+        """Если нет то создаю и обновляю"""
+        try:
+            current_order = Order.objects.get(
+                customer=user, is_active="active")
+        except BaseException:
+            current_order = Order.objects.create(
+                customer=user, is_active='active', status='deliver')
+
         product, created = CardProduct.objects.get_or_create(
-            product=validated_data['product'], defaults={'customer': user})
+            product=validated_data['product'], defaults={
+                'customer': user, 'product': validated_data['product']})
         if not current_order.products.filter(pk=product.pk).exists():
             product.card = current_order
             product.save()
             current_order.get_price()
-        return product
+            return product
+        else:
+            """Если существует увеличиваю количество"""
+            for cardproduct in current_order.products.all():
+                if cardproduct.product == product_instance:
+                    CardProduct.objects.filter(
+                        product=product_instance,
+                        customer=user,
+                        card=current_order.id).update(
+                        amount=F('amount') + 1)
+                    CardProduct.objects.get(
+                        product=product_instance,
+                        customer=user,
+                        card=current_order.id).save()
+                    return product
 
 
 class UserDetailSerializer(serializers.ModelSerializer):
@@ -172,8 +182,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Profile
-        fields = ['email', 'username', 'phone', 'orders_quantity']
+        fields = ['id', 'email', 'username', 'phone', 'orders_quantity']
 
     def get_orders_quantity(self, obj):
-        data = obj.customer.order.all()
+        data = obj.customer.order.filter(~Q(is_active='active'))
         return data.count()

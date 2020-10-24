@@ -1,5 +1,5 @@
 from django import forms
-from .models import Product
+from .models import Product, CardProduct
 
 class ProductForm(forms.ModelForm):
     class Meta:
@@ -14,3 +14,4 @@ class ProductForm(forms.ModelForm):
         if content is None:
             raise forms.ValidationError('Заполните поле content')
         return super().clean(*args, **kwargs)
+
